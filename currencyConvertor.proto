@@ -1,0 +1,17 @@
+syntax = "proto3";
+option go_package = "github.com/rima971/currency-convertor";
+package currencyConvertor;
+
+message Money {
+  double value = 1;
+  string currency = 2;
+}
+
+message currencyConvertorRequest {
+  string targetCurrency = 1;
+  Money money = 2;
+}
+
+service currencyConvertorService {
+  rpc convert(currencyConvertorRequest) returns (Money);
+}
