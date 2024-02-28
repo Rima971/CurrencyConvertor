@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	pb "github.com/rima971/currency-convertor/currencyConvertor"
 	"github.com/rima971/currency-convertor/services"
 	"google.golang.org/grpc"
@@ -109,6 +110,38 @@ func TestCurrencyConvertor_convert(t *testing.T) {
 				err: nil,
 			},
 		},
+		"success: 20 INR sent - expect 0.22 EURO": {
+			in: &pb.CurrencyConvertorRequest{
+				TargetCurrency: "EURO",
+				Money: &pb.Money{
+					Value:    20,
+					Currency: "INR",
+				},
+			},
+			expected: expectation{
+				out: &pb.Money{
+					Value:    0.22,
+					Currency: "EURO",
+				},
+				err: nil,
+			},
+		},
+		"success: 20 EURO sent - expect 1818.18 INR": {
+			in: &pb.CurrencyConvertorRequest{
+				TargetCurrency: "INR",
+				Money: &pb.Money{
+					Value:    20,
+					Currency: "EURO",
+				},
+			},
+			expected: expectation{
+				out: &pb.Money{
+					Value:    1818.18,
+					Currency: "INR",
+				},
+				err: nil,
+			},
+		},
 		"success: 12.34 USD sent - expect 1028.33 INR": {
 			in: &pb.CurrencyConvertorRequest{
 				TargetCurrency: "INR",
@@ -141,13 +174,88 @@ func TestCurrencyConvertor_convert(t *testing.T) {
 				err: nil,
 			},
 		},
+		"failure - bad request: negative money value provided": {
+			in: &pb.CurrencyConvertorRequest{
+				TargetCurrency: "USD",
+				Money: &pb.Money{
+					Value:    -8,
+					Currency: "INR",
+				},
+			},
+			expected: expectation{
+				out: nil,
+				err: errors.New("bad request - money value cannot be negative"),
+			},
+		},
+		"failure - bad request: unsupported target currency passed": {
+			in: &pb.CurrencyConvertorRequest{
+				TargetCurrency: "US",
+				Money: &pb.Money{
+					Value:    8,
+					Currency: "INR",
+				},
+			},
+			expected: expectation{
+				out: nil,
+				err: errors.New("bad request - unsupported currency provided"),
+			},
+		},
+		"failure - bad request: unsupported money currency passed": {
+			in: &pb.CurrencyConvertorRequest{
+				TargetCurrency: "USD",
+				Money: &pb.Money{
+					Value:    8,
+					Currency: "IN",
+				},
+			},
+			expected: expectation{
+				out: nil,
+				err: errors.New("bad request - unsupported currency provided"),
+			},
+		},
+		"failure - bad request: empty target currency": {
+			in: &pb.CurrencyConvertorRequest{
+				Money: &pb.Money{
+					Value:    8,
+					Currency: "INR",
+				},
+			},
+			expected: expectation{
+				out: nil,
+				err: errors.New("bad request - unsupported currency provided"),
+			},
+		},
+		"failure - bad request: empty money currency": {
+			in: &pb.CurrencyConvertorRequest{
+				TargetCurrency: "USD",
+				Money: &pb.Money{
+					Value: 8,
+				},
+			},
+			expected: expectation{
+				out: nil,
+				err: errors.New("bad request - unsupported currency provided"),
+			},
+		},
+		"failure - bad request: empty money value": {
+			in: &pb.CurrencyConvertorRequest{
+				TargetCurrency: "USD",
+				Money: &pb.Money{
+					Currency: "INR",
+				},
+			},
+			expected: expectation{
+				out: nil,
+				err: errors.New("bad request - money value cannot be negative"),
+			},
+		},
 	}
 
 	for scenario, tt := range tests {
 		t.Run(scenario, func(t *testing.T) {
 			out, err := client.Convert(ctx, tt.in)
 			if err != nil {
-				if tt.expected.err == nil || tt.expected.err.Error() != err.Error() {
+				if tt.expected.err == nil || "rpc error: code = Unknown desc = "+tt.expected.err.Error() != err.Error() {
 					t.Errorf("Err -> \nWant: %q\nGot: %q\n", tt.expected.err, err)
 				}
 			} else {
